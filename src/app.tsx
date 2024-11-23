@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { APIProvider, Map, MapCameraChangedEvent, Marker } from '@vis.gl/react-google-maps';
 
 import axios from 'axios';
+import { dijkstra, aStar } from './algoritmos';
 
 
 const App = () => {
@@ -14,6 +15,8 @@ const App = () => {
 
     // Estado para los marcadores
     const [markers, setMarkers] = useState<{ lat: number; lng: number; title: string }[]>([]);
+
+    const [results, setResults] = useState<{ dijkstra: any; aStar: any } | null>(null);
 
     // Refs para los campos de dirección
     const autocompleteRefs = useRef<(google.maps.places.Autocomplete | null)[]>(Array(5).fill(null));
@@ -25,7 +28,6 @@ const App = () => {
         setAddresses(newAddresses);
     };
 
-    // Punto de partida
     const handleLocate = async () => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
@@ -35,17 +37,15 @@ const App = () => {
 
                     try {
                         const response = await axios.get(
-                            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=TU_API_KEY`
+                            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyBeZTi724j11k9obSq7XUQVJlVQE-9jGnA`
                         );
 
                         if (response.data.results.length > 0) {
                             const formattedAddress = response.data.results[0].formatted_address;
-
                             const newAddresses = [...addresses];
                             newAddresses[0] = formattedAddress;
                             setAddresses(newAddresses);
 
-                            // Establecer marcador del punto de partida
                             setMarkers((prev) => [
                                 ...prev.filter((m) => m.title !== 'Punto de partida'),
                                 { lat: latitude, lng: longitude, title: 'Punto de partida' },
@@ -63,7 +63,6 @@ const App = () => {
         }
     };
 
-    // Agregar marcador de dirección
     const handleAddMarker = (index: number) => {
         const autocomplete = autocompleteRefs.current[index];
         if (autocomplete) {
@@ -73,12 +72,70 @@ const App = () => {
                 const lng = place.geometry.location.lng();
                 const title = `Dirección ${index + 1}`;
                 setMarkers((prev) => [
-                    ...prev.filter((m) => m.title !== title), // Elimina marcadores previos de la misma dirección
+                    ...prev.filter((m) => m.title !== title),
                     { lat, lng, title },
                 ]);
             }
         }
     };
+
+    const fetchDistanceMatrix = async (origins: string[], destinations: string[]) => {
+        try {
+            const response = await axios.get(
+                `https://maps.googleapis.com/maps/api/distancematrix/json`,
+                {
+                    params: {
+                        origins: origins.join('|'),
+                        destinations: destinations.join('|'),
+                        key: 'AIzaSyBeZTi724j11k9obSq7XUQVJlVQE-9jGnA',
+                    },
+                }
+            );
+
+            return response.data.rows.map((row) =>
+                row.elements.map((element) => element.distance.value)
+            );
+        } catch (error) {
+            console.error('Error al obtener distancias:', error);
+            return [];
+        }
+    };
+
+    const buildGraph = (nodes: string[], distances: number[][]) => {
+        const graph: { [key: string]: { [key: string]: number } } = {};
+        nodes.forEach((node, i) => {
+            graph[node] = {};
+            nodes.forEach((neighbor, j) => {
+                if (i !== j) graph[node][neighbor] = distances[i][j];
+            });
+        });
+        return graph;
+    };
+
+    const calculateRoutes = async () => {
+        if (markers.length < 2) {
+            alert('Por favor, ingresa al menos dos direcciones.');
+            return;
+        }
+
+        const origins = markers.map((marker) => `${marker.lat},${marker.lng}`);
+        const nodes = markers.map((_, index) => index.toString());
+        const distances = await fetchDistanceMatrix(origins, origins);
+        const graph = buildGraph(nodes, distances);
+
+        const dijkstraResult = dijkstra(graph, '0', `${nodes.length - 1}`);
+        const aStarResult = aStar(graph, '0', `${nodes.length - 1}`, {
+            '0': [markers[0].lat, markers[0].lng],
+            [`${nodes.length - 1}`]: [
+                markers[markers.length - 1].lat,
+                markers[markers.length - 1].lng,
+            ],
+        });
+
+        setResults({ dijkstra: dijkstraResult, aStar: aStarResult });
+    };
+
+    
 
     return (
         <APIProvider apiKey={'AIzaSyBeZTi724j11k9obSq7XUQVJlVQE-9jGnA'} onLoad={() => console.log('Maps API has loaded.')}>
@@ -140,7 +197,7 @@ const App = () => {
                                                     Coordenadas: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
                                                 </div>
                                             ) : (
-                                                <div className="text-coordenadas">
+                                                <div className="text-coordenadas text-danger">
                                                     No establecido
                                                 </div>
                                             )}
@@ -167,8 +224,18 @@ const App = () => {
                                         />
                                     </div>
                                 ))}
-                                    <button type="submit" className="btn btn-primary mt-2">Calcular</button>
+                                    <a onClick={calculateRoutes} type="submit" className="btn btn-primary mt-2">Calcular</a>
                                 </form>
+
+                                <div>
+                                {results && (
+                    <div>
+                        <h3>Resultados:</h3>
+                        <p>Dijkstra: {JSON.stringify(results.dijkstra)}</p>
+                        <p>A*: {JSON.stringify(results.aStar)}</p>
+                    </div>
+                )}
+                                </div>
                             </div>
                             <div className="mt-2">
                                 <div className="card">
