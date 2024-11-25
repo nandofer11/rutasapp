@@ -45,21 +45,27 @@ const MapComponent = () => {
 
   // Handle setting the starting point
   const handleOriginClick = () => {
-    if (map) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setMarkers((prev) => [...prev, { lat: latitude, lng: longitude }]);
-          setOriginCoordinates({ lat: latitude, lng: longitude });
-          map.panTo({ lat: latitude, lng: longitude });
-        },
-        (error) => {
-          console.error('Error al obtener la ubicación:', error);
-          alert('No se pudo obtener la ubicación. Verifica los permisos.');
-        }
-      );
-    }
-  };
+  if (map) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setMarkers((prev) => [...prev, { lat: latitude, lng: longitude }]);
+        setOriginCoordinates({ lat: latitude, lng: longitude });
+        map.panTo({ lat: latitude, lng: longitude });
+      },
+      (error) => {
+        console.error('Error al obtener la ubicación:', error);
+        alert('No se pudo obtener la ubicación. Verifica los permisos.');
+      },
+      {
+        enableHighAccuracy: true, // Activar alta precisión
+        timeout: 10000,          // Tiempo máximo para obtener ubicación
+        maximumAge: 0            // No usar caché
+      }
+    );
+  }
+};
+
 
   // Show or hide the form
   const toggleForm = () => {
