@@ -21,14 +21,7 @@ const MapComponent = () => {
   const [deliveries, setDeliveries] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [calculationResult, setCalculationResult] = useState(null);
-
-  const [polylines, setPolylines] = useState([]);
-
-  const [directions, setDirections] = useState(null); // Estado para almacenar las direcciones
-
   const [sortLabel, setSortLabel] = useState('');
-
-  const [closestAddress, setClosestAddress] = useState(null); // Dirección más cercana
 
 
   const [formData, setFormData] = useState({
@@ -38,12 +31,12 @@ const MapComponent = () => {
   });
   const autocompleteRef = useRef(null);
 
-  // Handle map load
+  // Escucha que mapa se haya cargado
   const handleMapLoad = (map) => {
     setMap(map);
   };
 
-  // Handle setting the starting point
+  // Configura el punto de partida
   const handleOriginClick = () => {
   if (map) {
     navigator.geolocation.getCurrentPosition(
@@ -58,16 +51,15 @@ const MapComponent = () => {
         alert('No se pudo obtener la ubicación. Verifica los permisos.');
       },
       {
-        enableHighAccuracy: true, // Activar alta precisión
-        timeout: 10000,          // Tiempo máximo para obtener ubicación
-        maximumAge: 0            // No usar caché
+        enableHighAccuracy: true, 
+        timeout: 10000,         
+        maximumAge: 0          
       }
     );
   }
 };
 
-
-  // Show or hide the form
+  // Mostrar y ocultar form de entrega
   const toggleForm = () => {
     setFormData({
       urbanization: '',
@@ -77,19 +69,19 @@ const MapComponent = () => {
     setShowForm((prev) => !prev);
   };
 
-  // Handle form changes
+  // Escuchar cambios en el form
   const handleFormChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Handle dynamic input for packages
+  // Input dinamicos para los paquetes
   const handlePackageChange = (index, value) => {
     const updatedPackages = [...formData.packages];
     updatedPackages[index] = value;
     setFormData((prev) => ({ ...prev, packages: updatedPackages }));
   };
 
-  // Save the delivery
+  // Guarda la entrega
   const saveDelivery = () => {
     const selectedPlace = autocompleteRef.current.getPlace();
     if (!selectedPlace || !selectedPlace.geometry) {
@@ -100,7 +92,7 @@ const MapComponent = () => {
     const location = selectedPlace.geometry.location;
     const newMarker = { lat: location.lat(), lng: location.lng() };
 
-    // Update deliveries and markers
+    // Actualiza entregas y marcadores
     setDeliveries((prev) => [
       ...prev,
       {
@@ -111,11 +103,11 @@ const MapComponent = () => {
     ]);
     setMarkers((prev) => [...prev, newMarker]);
 
-    // Hide the form
+    // Oculta el form
     toggleForm();
   };
 
-  // Render deliveries list
+  // Renderiza la lista de entregas
   const renderDeliveries = () => {
     if (deliveries.length === 0) {
       return <p className="text-muted text-center">No hay entregas registradas.</p>;
@@ -134,7 +126,7 @@ const MapComponent = () => {
     ));
   };
 
-  // Calculate distance and time
+  // Calcula distancia y tiempos
   const calculateDistance = () => {
     if (!originCoordinates || deliveries.length === 0) {
       alert('Establece un punto de partida y al menos una urbanización.');
@@ -178,7 +170,7 @@ const MapComponent = () => {
     );
   };
 
-  // Filter and sort deliveries
+  // Filtra entregas 
   const sortDeliveries = (type) => {
     let sortedDeliveries = [];
     if (type === 'quantity') {
@@ -195,7 +187,7 @@ const MapComponent = () => {
     setDeliveries(sortedDeliveries);
   };
 
-  // Draw graph with polyline
+  // Dibuaj la ruta en polilinea
   const drawRoute = () => {
     if (!originCoordinates || !calculationResult) {
       alert('Debes establecer un punto de partida y calcular la distancia primero.');
